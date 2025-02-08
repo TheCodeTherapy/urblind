@@ -8,5 +8,5 @@ I first saw a similar tool being used with i3 on X11 during a Twitch coding live
 
 <br />
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/60f8ef0e-6688-46ee-8730-dc8338c33d32">
+  <img src="https://github.com/user-attachments/assets/6ba7c70d-6371-4964-bcda-fc1dbc899f9d">
 </div>
