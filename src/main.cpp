@@ -361,6 +361,7 @@ int main(int argc, char* argv[]) {
   float deltaTime = 0.0f;
   int fps = 0.0f;
 
+  SetConfigFlags(FLAG_WINDOW_HIDDEN | FLAG_WINDOW_RESIZABLE);
   InitWindow(screenWidth, screenHeight, "raylib");
 
   DebugPanel debugPanel(12, 12, fontSize, 1.1f);
@@ -414,8 +415,6 @@ int main(int argc, char* argv[]) {
   screenHeight = GetMonitorHeight(selectedMonitor);
 
   SetWindowSize(screenWidth, screenHeight);
-  SetWindowPosition(static_cast<int>(GetMonitorPosition(selectedMonitor).x),
-                    static_cast<int>(GetMonitorPosition(selectedMonitor).y));
 
   pan.x = GetMonitorPosition(selectedMonitor).x;
   pan.y = GetMonitorPosition(selectedMonitor).y;
@@ -424,12 +423,10 @@ int main(int argc, char* argv[]) {
   Rectangle source = {pan.x, pan.y, screenWidth / zoom, screenHeight / zoom};
   Rectangle dest = {0, 0, static_cast<float>(screenWidth), static_cast<float>(screenHeight)};
 
-  SetConfigFlags(FLAG_WINDOW_HIDDEN);
-  // WARNING: This is a hack that forces the window to be hidden before the screenshot. Not sure if it's consistent
-  // because maybe the X server and/or the compositor need more time. On the CaptureScreenX11 function, I'm using
-  // XSync to flush the output buffer and wait for X to process all requests in queue. Maybe that's enough?
   Image screenshot = CaptureScreenX11(0, 0, monitorState.totalWidth, monitorState.totalHeight);
   ClearWindowState(FLAG_WINDOW_HIDDEN);
+  SetWindowPosition(static_cast<int>(GetMonitorPosition(selectedMonitor).x),
+                    static_cast<int>(GetMonitorPosition(selectedMonitor).y));
 
   if (screenshot.data == nullptr) {
     std::cerr << "Failed to capture screen!" << std::endl;
