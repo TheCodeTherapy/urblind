@@ -19,18 +19,18 @@ I first saw a similar tool being used with i3 on X11 during a Twitch coding live
 
   Yes, you can use it with Gnome. I listed this as an i3-wm tool because that's the environment I use it with, and I assumed desktop environments like Gnome already count with a similar tool out of the box.
 
-- Can I use this on KDE?
+- _Can I use this on KDE?_
 
   Probably, as long as you're using X11. I haven't tested, though.
 
-- Can I use this on Wayland?
+- _Can I use this on Wayland?_
 
   No. I'm using `<X11/Xlib.h>` and `<X11/Xutil.h>` to capture the contents of the desktop. Also, I have no interest in Wayland as I don't appreciate giving up control over my system under the argument of security (the usual _"it's for your own safety"_ bullshit). It is a design decision in Wayland not to expose absolute window positions to clients nor to allow setting the absolute position of a window. I can't overstate enough how much I don't care for Wayland.
 
-- Can I suggest improvements or raise a PR?
+- _Can I suggest improvements or raise a PR?_
 
   Sure!
 
-- Can I raise a PR to make this compatible with Windows?
+- _Can I raise a PR to make this compatible with Windows or MacOS?_
 
   Please feel free to fork and adapt it to your operating system. Raylib allows you to do that easily. However, for this repo, I prefer keeping it simple rather than overcomplicating it to make it compatible with other operating systems, so I won't merge any code to do that.
