@@ -6,4 +6,6 @@ URBlind is a simple tool designed for i3-wm on X11, allowing you to zoom into po
 
 I first saw a similar tool being used with i3 on X11 during a Twitch coding livestream by a guy named Tsoding. I wasn't sure what software he was using, and I was too shy to ask, figuring that a hundred other people had probably already asked the very same question (which can be annoying). So, I decided to build my own.
 
-![urblind](https://github.com/user-attachments/assets/60f8ef0e-6688-46ee-8730-dc8338c33d32)
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/60f8ef0e-6688-46ee-8730-dc8338c33d32" width="100%">
+</div>
