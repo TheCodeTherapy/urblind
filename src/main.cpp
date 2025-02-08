@@ -217,7 +217,7 @@ class DebugPanel {
   int x, y;
   int fontSize;
   float padding;
-  bool visible = true;
+  bool visible = false;
   std::vector<DebugInfo> entries;
   int longestEntryEver = 0;
 
@@ -227,6 +227,8 @@ class DebugPanel {
   void AddEntry(const std::string& label, std::function<std::string()> valueFunc) {
     entries.push_back({label, valueFunc});
   }
+
+  void SetVisible(bool isVisible) { visible = isVisible; }
 
   void Draw() {
     if (!visible) return;
@@ -378,8 +380,13 @@ int main(int argc, char* argv[]) {
 
   int selectedMonitor = -1;
 
-  if (argc > 1) {
-    std::string arg = argv[1];
+  for (int i = 1; i < argc; i++) {
+    std::string arg = argv[i];
+
+    if (arg == "--debug") {
+      debugPanel.SetVisible(true);
+      continue;
+    }
 
     if (arg == "--help") {
       std::cout << "Monitor Layout:\n";
@@ -389,15 +396,24 @@ int main(int argc, char* argv[]) {
                   << monitorState.resolutions[index].y << " | Position: (" << monitorState.positions[i].x << ", "
                   << monitorState.positions[i].y << ")\n";
       }
-      std::cout << "Usage: " << argv[0] << " [monitor_index]\n";
-      std::cout << "If no index is provided, the rightmost monitor is used by default.\n";
+      std::cout << std::endl;
+      std::cout << "Usage: " << argv[0] << " [monitor_index] [--debug]" << std::endl;
+      std::cout << std::endl;
+      std::cout << "Options:" << std::endl;
+      std::cout << "  --help       Show this help message and exit." << std::endl;
+      std::cout << "  --debug      Enable debug panel." << std::endl;
+      std::cout << std::endl;
+      std::cout << "If no monitor index is provided, the rightmost monitor is used by default." << std::endl;
+      std::cout << std::endl;
       DrawMonitorLayout(monitorState);
       return 0;
     }
 
+    // If argument is numeric, treat it as a monitor index
     try {
       if (!arg.empty() && std::all_of(arg.begin(), arg.end(), ::isdigit)) {
         selectedMonitor = std::stoi(arg);
+        std::cout << "Monitor selected by command arguments: " << selectedMonitor << std::endl;
       } else {
         throw std::invalid_argument("Invalid monitor index");
       }
