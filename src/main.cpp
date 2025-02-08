@@ -1,7 +1,12 @@
+#include <sys/ioctl.h>
+#include <unistd.h>
+
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <functional>
 #include <iostream>
+#include <locale>
 #include <vector>
 
 #include "raylib.h"
@@ -255,7 +260,85 @@ class DebugPanel {
   }
 };
 
-int main() {
+void SetupUTF8() { std::locale::global(std::locale("en_US.UTF-8")); }
+
+void DrawMonitorLayout(const MonitorState& monitorState) {
+  SetupUTF8();
+
+  // Get terminal width
+  struct winsize w;
+  ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+  int termWidth = w.ws_col - 3;  // Leave 3 columns for safety
+
+  if (termWidth <= 0) {
+    std::cerr << "Unable to detect terminal width!" << std::endl;
+    return;
+  }
+
+  int monitorCount = monitorState.spatialMonitorIndexes.size();
+  if (monitorCount == 0) {
+    std::cerr << "No monitors detected!" << std::endl;
+    return;
+  }
+
+  // Determine total pixel width of all monitors
+  float totalWidthPixels = 0;
+  for (int idx : monitorState.spatialMonitorIndexes) {
+    totalWidthPixels += monitorState.resolutions[idx].x;
+  }
+
+  // Compute proportional width of each monitor box
+  std::vector<int> boxWidths(monitorCount);
+  std::vector<int> boxHeights(monitorCount);
+  float scaleFactor = static_cast<float>(termWidth) / totalWidthPixels;
+
+  int maxBoxHeight = 10;  // Fixed height for boxes
+  for (int i = 0; i < monitorCount; i++) {
+    int idx = monitorState.spatialMonitorIndexes[i];
+    boxWidths[i] = std::max(10, static_cast<int>(monitorState.resolutions[idx].x * scaleFactor));
+    boxHeights[i] = maxBoxHeight;
+  }
+
+  // Define Unicode box-drawing characters as UTF-8 strings
+  const std::string topLeft = "┌";
+  const std::string topRight = "┐";
+  const std::string bottomLeft = "└";
+  const std::string bottomRight = "┘";
+  const std::string horizontal = "─";
+  const std::string vertical = "│";
+
+  // Draw monitor layout to the terminal
+  for (int row = 0; row < maxBoxHeight; row++) {
+    std::string line;
+    for (int i = 0; i < monitorCount; i++) {
+      if (row == 0) {  // Top border
+        line += topLeft;
+        for (int j = 0; j < boxWidths[i] - 2; j++) {
+          line += horizontal;  // Append UTF-8 horizontal bar
+        }
+        line += topRight + " ";
+      } else if (row == maxBoxHeight - 1) {  // Bottom border with monitor label
+        int idx = monitorState.spatialMonitorIndexes[i];
+        std::string label = "[" + std::to_string(idx) + "](" +
+                            std::to_string(static_cast<int>(monitorState.resolutions[idx].x)) + "x" +
+                            std::to_string(static_cast<int>(monitorState.resolutions[idx].y)) + ")";
+        int padding = boxWidths[i] - 2 - label.size();
+        line += bottomLeft;
+        line += label;
+        for (int j = 0; j < padding; j++) {
+          line += horizontal;  // Append UTF-8 horizontal bar
+        }
+        line += bottomRight + " ";
+      } else {  // Empty box space
+        line += vertical + std::string(boxWidths[i] - 2, ' ') + vertical + " ";
+      }
+    }
+    std::cout << line << std::endl;
+  }
+  std::cout.flush();
+}
+
+int main(int argc, char* argv[]) {
   const int fontSize = 20;
 
   int screenWidth = 640;
@@ -288,16 +371,58 @@ int main() {
   debugPanel.AddEntry("zoom   ", [&]() { return TextFormat("%.2f", zoom); });
 
   MonitorState monitorState;
-  screenWidth = static_cast<int>(monitorState.resolutions[2].x);
-  screenHeight = static_cast<int>(monitorState.resolutions[2].y);
+
+  int selectedMonitor = -1;
+
+  if (argc > 1) {
+    std::string arg = argv[1];
+
+    if (arg == "--help") {
+      std::cout << "Monitor Layout:\n";
+      for (size_t i = 0; i < monitorState.spatialMonitorIndexes.size(); i++) {
+        int index = monitorState.spatialMonitorIndexes[i];
+        std::cout << "Monitor " << index << ": " << monitorState.resolutions[index].x << "x"
+                  << monitorState.resolutions[index].y << " | Position: (" << monitorState.positions[i].x << ", "
+                  << monitorState.positions[i].y << ")\n";
+      }
+      std::cout << "Usage: " << argv[0] << " [monitor_index]\n";
+      std::cout << "If no index is provided, the rightmost monitor is used by default.\n";
+      DrawMonitorLayout(monitorState);
+      return 0;
+    }
+
+    try {
+      if (!arg.empty() && std::all_of(arg.begin(), arg.end(), ::isdigit)) {
+        selectedMonitor = std::stoi(arg);
+      } else {
+        throw std::invalid_argument("Invalid monitor index");
+      }
+    } catch (const std::exception& e) {
+      std::cerr << "Error: " << e.what() << ". Falling back to the rightmost monitor.\n";
+      selectedMonitor = -1;
+    }
+  }
+
+  // Default to the rightmost monitor if no valid selection is made
+  if (selectedMonitor == -1) {
+    selectedMonitor = monitorState.spatialMonitorIndexes.back();
+  }
+
+  std::cout << "Using monitor " << selectedMonitor << "\n";
+
+  screenWidth = GetMonitorWidth(selectedMonitor);
+  screenHeight = GetMonitorHeight(selectedMonitor);
 
   SetWindowSize(screenWidth, screenHeight);
-  SetWindowPosition(static_cast<int>(monitorState.positions[2].x), static_cast<int>(monitorState.positions[2].y));
+  SetWindowPosition(static_cast<int>(GetMonitorPosition(selectedMonitor).x),
+                    static_cast<int>(GetMonitorPosition(selectedMonitor).y));
 
-  pan.x = monitorState.positions[2].x;
-  pan.y = monitorState.positions[2].y;
-  targetPan.x = monitorState.positions[2].x;
-  targetPan.y = monitorState.positions[2].y;
+  pan.x = GetMonitorPosition(selectedMonitor).x;
+  pan.y = GetMonitorPosition(selectedMonitor).y;
+  targetPan.x = pan.x;
+  targetPan.y = pan.y;
+  Rectangle source = {pan.x, pan.y, screenWidth / zoom, screenHeight / zoom};
+  Rectangle dest = {0, 0, static_cast<float>(screenWidth), static_cast<float>(screenHeight)};
 
   SetConfigFlags(FLAG_WINDOW_HIDDEN);
   // WARNING: This is a hack that forces the window to be hidden before the screenshot. Not sure if it's consistent
@@ -367,10 +492,8 @@ int main() {
     ClampPan(pan, zoom, {static_cast<float>(texture.width), static_cast<float>(texture.height)},
              {static_cast<float>(screenWidth), static_cast<float>(screenHeight)});
 
-    Rectangle source = {pan.x, pan.y, monitorState.resolutions[2].x / zoom, monitorState.resolutions[2].y / zoom};
-
-    Rectangle dest = {0, 0, monitorState.resolutions[monitorState.mainMonitor].x,
-                      monitorState.resolutions[monitorState.mainMonitor].y};
+    Rectangle source = {pan.x, pan.y, screenWidth / zoom, screenHeight / zoom};
+    Rectangle dest = {0, 0, static_cast<float>(screenWidth), static_cast<float>(screenHeight)};
 
     // TODO: MAYBE adjust the dest rectangle to clamp the texture when it is zoomed out and smaller than the viewport?
     // I kinda like the mirrored repeat texture wrapping though. It feels unpolished but it looks cool.
