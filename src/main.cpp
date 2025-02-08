@@ -268,7 +268,7 @@ void DrawMonitorLayout(const MonitorState& monitorState) {
   // Get terminal width
   struct winsize w;
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-  int termWidth = w.ws_col - 3;  // Leave 3 columns for safety
+  int termWidth = w.ws_col - 4;
 
   if (termWidth <= 0) {
     std::cerr << "Unable to detect terminal width!" << std::endl;
@@ -312,16 +312,19 @@ void DrawMonitorLayout(const MonitorState& monitorState) {
     std::string line;
     for (int i = 0; i < monitorCount; i++) {
       if (row == 0) {  // Top border
+        int idx = monitorState.spatialMonitorIndexes[i];
+        std::string label = std::to_string(static_cast<int>(monitorState.resolutions[idx].x)) + "x" +
+                            std::to_string(static_cast<int>(monitorState.resolutions[idx].y));
+        int padding = boxWidths[i] - 2 - label.size();
         line += topLeft;
-        for (int j = 0; j < boxWidths[i] - 2; j++) {
+        line += label;
+        for (int j = 0; j < padding; j++) {
           line += horizontal;  // Append UTF-8 horizontal bar
         }
         line += topRight + " ";
       } else if (row == maxBoxHeight - 1) {  // Bottom border with monitor label
         int idx = monitorState.spatialMonitorIndexes[i];
-        std::string label = "[" + std::to_string(idx) + "](" +
-                            std::to_string(static_cast<int>(monitorState.resolutions[idx].x)) + "x" +
-                            std::to_string(static_cast<int>(monitorState.resolutions[idx].y)) + ")";
+        std::string label = "[" + std::to_string(idx) + "]";
         int padding = boxWidths[i] - 2 - label.size();
         line += bottomLeft;
         line += label;
