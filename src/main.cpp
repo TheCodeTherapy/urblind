@@ -364,7 +364,7 @@ int main(int argc, char* argv[]) {
   SetConfigFlags(FLAG_WINDOW_HIDDEN | FLAG_WINDOW_RESIZABLE);
   InitWindow(screenWidth, screenHeight, "raylib");
 
-  DebugPanel debugPanel(12, 12, fontSize, 1.1f);
+  DebugPanel debugPanel(21, 21, fontSize, 1.1f);
   debugPanel.AddEntry("fps    ", [&]() { return TextFormat("%d", fps); });
   debugPanel.AddEntry("mouse  ", [&]() { return TextFormat("%04.0f, %04.0f", mousePosition.x, mousePosition.y); });
   debugPanel.AddEntry("texure ", [&]() { return TextFormat("%04.0f, %04.0f", mouseOnTexture.x, mouseOnTexture.y); });
