@@ -361,8 +361,8 @@ int main(int argc, char* argv[]) {
   float deltaTime = 0.0f;
   int fps = 0.0f;
 
-  SetConfigFlags(FLAG_WINDOW_HIDDEN | FLAG_WINDOW_RESIZABLE);
-  InitWindow(screenWidth, screenHeight, "raylib");
+  SetConfigFlags(FLAG_WINDOW_HIDDEN);
+  InitWindow(screenWidth, screenHeight, "urblind");
 
   DebugPanel debugPanel(21, 21, fontSize, 1.1f);
   debugPanel.AddEntry("fps    ", [&]() { return TextFormat("%d", fps); });
@@ -425,6 +425,7 @@ int main(int argc, char* argv[]) {
 
   Image screenshot = CaptureScreenX11(0, 0, monitorState.totalWidth, monitorState.totalHeight);
   ClearWindowState(FLAG_WINDOW_HIDDEN);
+  SetConfigFlags(FLAG_WINDOW_UNDECORATED);
   SetWindowPosition(static_cast<int>(GetMonitorPosition(selectedMonitor).x),
                     static_cast<int>(GetMonitorPosition(selectedMonitor).y));
 
