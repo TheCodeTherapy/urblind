@@ -19,8 +19,6 @@
 #include <X11/Xutil.h>
 #undef Font
 
-// TODO: Implement a method to print monitors layout on the terminal with ASCII art so users can select a monitor.
-// TODO: Allow the user to select the monitor by index as a command line argument.
 // TODO: Implement a shader-based paint brush to highlight parts of the texture.
 // TODO: Implement a way to save the painted texture to a file with a bindkey (stb_image_write.h).
 
