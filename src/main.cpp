@@ -7,6 +7,7 @@
 #include <functional>
 #include <iostream>
 #include <locale>
+#include <optional>
 #include <vector>
 
 #include "../include/monospacedfont.h"
@@ -206,6 +207,8 @@ struct DebugInfo {
   std::function<std::string()> valueFunc;
 };
 
+enum class DebugAnchor { TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT };
+
 /**
  * ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
  * │ This is just a small class I'll use as a debug panel to show some values in real-time because I didn't want to   │
@@ -213,6 +216,7 @@ struct DebugInfo {
  * │ library. I don't want the debug info to be ugly tho, so I'm writing this.                                        │
  * └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
  */
+
 class DebugPanel {
  public:
   int x, y;
@@ -222,6 +226,7 @@ class DebugPanel {
   std::vector<DebugInfo> entries;
   int longestEntryEver = 0;
   Font myFont;
+  DebugAnchor anchor = DebugAnchor::TOP_LEFT;  // Default
 
   DebugPanel(int startX, int startY, int textSize = 20, float spacingMultiplier = 1.0f)
       : x(startX), y(startY), fontSize(textSize), padding(textSize * spacingMultiplier) {
@@ -232,6 +237,8 @@ class DebugPanel {
       std::cout << "Embedded font loaded successfully!" << std::endl;
     }
   }
+
+  void SetAnchor(DebugAnchor newAnchor) { anchor = newAnchor; }
 
   void Dispose() { UnloadFont(myFont); }
 
@@ -254,22 +261,47 @@ class DebugPanel {
     }
 
     float pad = fontSize * 0.5f;
+    int panelWidth = longestEntryEver + fontSize;
+    int panelHeight = padding * entries.size() + fontSize;
 
-    int left = x - pad;
-    int top = y - pad;
-    int right = x + longestEntryEver + pad;
-    int bottom = y + padding * entriesSize + pad;
+    // Compute screen bounds
+    int screenWidth = GetScreenWidth();
+    int screenHeight = GetScreenHeight();
 
-    DrawRectangle(left, top, longestEntryEver + fontSize, padding * entries.size() + fontSize, Fade(BLACK, 0.7f));
+    // Determine the actual X and Y based on the anchor
+    int adjustedX = x;
+    int adjustedY = y;
+
+    switch (anchor) {
+      case DebugAnchor::TOP_LEFT:
+        break;  // Keep default X and Y
+      case DebugAnchor::TOP_RIGHT:
+        adjustedX = screenWidth - panelWidth - x + fontSize;
+        break;
+      case DebugAnchor::BOTTOM_LEFT:
+        adjustedY = screenHeight - panelHeight - y + fontSize;
+        break;
+      case DebugAnchor::BOTTOM_RIGHT:
+        adjustedX = screenWidth - panelWidth - x + fontSize;
+        adjustedY = screenHeight - panelHeight - y + fontSize;
+        break;
+    }
+
+    int left = adjustedX - pad;
+    int top = adjustedY - pad;
+    int right = adjustedX + longestEntryEver + pad;
+    int bottom = adjustedY + padding * entriesSize + pad;
+
+    DrawRectangle(left, top, panelWidth, panelHeight, Fade(BLACK, 0.6667f));
     DrawLine(left, top, right, top, WHITE);        // top
     DrawLine(left, top, left, bottom, WHITE);      // left
     DrawLine(right, top, right, bottom, WHITE);    // right
     DrawLine(left, bottom, right, bottom, WHITE);  // bottom
 
-    float yOffset = y;
+    float yOffset = adjustedY;
     for (const auto& entry : entries) {
       std::string text = entry.label + ": " + entry.valueFunc();
-      DrawTextEx(myFont, text.c_str(), {static_cast<float>(x), yOffset}, fontSize, 0, WHITE);
+      DrawTextEx(myFont, text.c_str(), {static_cast<float>(adjustedX), yOffset}, fontSize, 0, WHITE);
       yOffset += padding;
     }
   }
@@ -382,7 +414,7 @@ int main(int argc, char* argv[]) {
   SetConfigFlags(FLAG_WINDOW_HIDDEN);
   InitWindow(screenWidth, screenHeight, "urblind");
 
-  DebugPanel debugPanel(21, 21, fontSize, 1.0f);
+  DebugPanel debugPanel(12, 12, fontSize, 1.0f);
   debugPanel.AddEntry("fps    ", [&]() { return TextFormat("%d", fps); });
   debugPanel.AddEntry("mouse  ", [&]() { return TextFormat("%05.0f, %05.0f", mousePosition.x, mousePosition.y); });
   debugPanel.AddEntry("texure ", [&]() { return TextFormat("%05.0f, %05.0f", mouseOnTexture.x, mouseOnTexture.y); });
@@ -393,11 +425,30 @@ int main(int argc, char* argv[]) {
 
   int selectedMonitor = -1;
 
+  bool debugMode = false;
+  std::optional<DebugAnchor> debugAnchor;
+
+  // First pass: Parse all flags and options
   for (int i = 1; i < argc; i++) {
     std::string arg = argv[i];
 
     if (arg == "--debug") {
-      debugPanel.SetVisible(true);
+      debugMode = true;
+      continue;
+    }
+
+    if (arg == "--debug-anchor" && i + 1 < argc) {
+      std::string anchorArg = argv[++i];  // Move to the next argument
+      if (anchorArg == "tl")
+        debugAnchor = DebugAnchor::TOP_LEFT;
+      else if (anchorArg == "tr")
+        debugAnchor = DebugAnchor::TOP_RIGHT;
+      else if (anchorArg == "bl")
+        debugAnchor = DebugAnchor::BOTTOM_LEFT;
+      else if (anchorArg == "br")
+        debugAnchor = DebugAnchor::BOTTOM_RIGHT;
+      else
+        std::cerr << "Warning: Invalid --debug-anchor value. Defaulting to 'tl'.\n";
       continue;
     }
 
@@ -410,31 +461,38 @@ int main(int argc, char* argv[]) {
                   << monitorState.positions[i].y << ")\n";
       }
       std::cout << std::endl;
-      std::cout << "Usage: " << argv[0] << " [monitor_index] [--debug]" << std::endl;
+      std::cout << "Usage: " << argv[0] << " [monitor_index] [--debug] [--debug-anchor {tl|tr|bl|br}]" << std::endl;
       std::cout << std::endl;
-      std::cout << "Options:" << std::endl;
-      std::cout << "  --help       Show this help message and exit." << std::endl;
-      std::cout << "  --debug      Enable debug panel." << std::endl;
+      std::cout << "Options:\n"
+                << "  --help                        Show this help message and exit." << std::endl
+                << "  --debug                       Enable debug panel." << std::endl
+                << "  --debug-anchor {tl|tr|bl|br}  Set debug panel anchor position." << std::endl;
       std::cout << std::endl;
-      std::cout << "If no monitor index is provided, the rightmost monitor is used by default." << std::endl;
-      std::cout << std::endl;
+      std::cout << "If no monitor index is provided, the rightmost monitor is used by default.\n" << std::endl;
       DrawMonitorLayout(monitorState);
       return 0;
     }
+  }
+
+  // Second pass: Find the numeric monitor index argument
+  for (int i = 1; i < argc; i++) {
+    std::string arg = argv[i];
 
     // If argument is numeric, treat it as a monitor index
-    try {
-      if (!arg.empty() && std::all_of(arg.begin(), arg.end(), ::isdigit)) {
+    if (!arg.empty() && std::all_of(arg.begin(), arg.end(), ::isdigit)) {
+      try {
         selectedMonitor = std::stoi(arg);
         std::cout << "Monitor selected by command arguments: " << selectedMonitor << std::endl;
-      } else {
-        throw std::invalid_argument("Invalid monitor index");
+      } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << ". Falling back to the rightmost monitor.\n";
+        selectedMonitor = -1;
       }
-    } catch (const std::exception& e) {
-      std::cerr << "Error: " << e.what() << ". Falling back to the rightmost monitor.\n";
-      selectedMonitor = -1;
     }
   }
+
+  // Apply parsed arguments
+  if (debugMode) debugPanel.SetVisible(true);
+  if (debugAnchor) debugPanel.SetAnchor(*debugAnchor);
 
   // Default to the rightmost monitor if no valid selection is made
   if (selectedMonitor == -1) {
@@ -442,7 +500,6 @@ int main(int argc, char* argv[]) {
   }
 
   std::cout << "Using monitor " << selectedMonitor << "\n";
-
   screenWidth = GetMonitorWidth(selectedMonitor);
   screenHeight = GetMonitorHeight(selectedMonitor);
 
