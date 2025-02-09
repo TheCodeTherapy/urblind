@@ -10,7 +10,7 @@
 #include <optional>
 #include <vector>
 
-#include "../include/monospacedfont.h"
+#include "../include/monospacedfont.hpp"
 #include "raylib.h"
 
 // X11 headers with a #define namespace conflict avoidance hack (Xlib's Font conflicts with Raylib's Font)
