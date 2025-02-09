@@ -34,10 +34,18 @@ _(you'll find more details about the command line arguments below)_
 
 <br />
 
+### 💾 **Install**
+
+Just build the application and copy the built binary to any directory of your preference that is included in your system's `$PATH`. For your convenience, you can create a bind key to launch it on your `i3-wm config` (or any other way you use to create system-wide bind keys).
+
+The built binary will be at `./build/urblind`.
+
+<br />
+
 ### 🚀 **Running the Application**
 
 ```sh
-./build/urblind [monitor_index] [OPTIONS]
+urblind [monitor_index] [OPTIONS]
 ```
 - If no monitor index is provided, the **rightmost monitor** will be used by default.
 
@@ -56,33 +64,33 @@ _(you'll find more details about the command line arguments below)_
 
 #### Start using the **default (rightmost) monitor**:
 ```sh
-./build/urblind
+urblind
 ```
 
 #### Select **monitor index 2**:
 ```sh
-./build/urblind 2
+urblind 2
 ```
 
 #### Check your **monitor indexes** to select the right one:
 ```sh
-./build/urblind --help
+urblind --help
 ```
 
 
 #### Run on **monitor index 1** and Enable debug panel:
 ```sh
-./build/urblind 1 --debug
+urblind 1 --debug
 ```
 
 #### Run on **monitor index 1** and Enable debug panel with **bottom-right anchor**:
 ```sh
-./build/urblind 1 --debug --debug-anchor br
+urblind 1 --debug --debug-anchor br
 ```
 
 #### Run on **monitor index 3** with debug panel **top-right anchored**:
 ```sh
-./build/urblind --debug-anchor tr --debug 3
+urblind --debug-anchor tr --debug 3
 ```
 
 <br />
@@ -133,4 +141,4 @@ _(you'll find more details about the command line arguments below)_
 
 ### Enjoy my work?
 
-Give it a Star and get in touch (and/or Tweet me memes) on X at **[@TheCodeTherapy](https://x.com/TheCodeTherapy)** 🤓
+Give it a ⭐ and get in touch (and/or Tweet me memes) on X at **[@TheCodeTherapy](https://x.com/TheCodeTherapy)** 🤓
