@@ -9,6 +9,7 @@
 #include <locale>
 #include <vector>
 
+#include "../include/monospacedfont.h"
 #include "raylib.h"
 
 // X11 headers with a #define namespace conflict avoidance hack (Xlib's Font conflicts with Raylib's Font)
@@ -220,9 +221,19 @@ class DebugPanel {
   bool visible = false;
   std::vector<DebugInfo> entries;
   int longestEntryEver = 0;
+  Font myFont;
 
-  DebugPanel(int startX, int startY, int textSize = 20, float spacingMultiplier = 1.25f)
-      : x(startX), y(startY), fontSize(textSize), padding(textSize * spacingMultiplier) {}
+  DebugPanel(int startX, int startY, int textSize = 20, float spacingMultiplier = 1.0f)
+      : x(startX), y(startY), fontSize(textSize), padding(textSize * spacingMultiplier) {
+    myFont = LoadFontFromMemory(".ttf", monofont_ttf, monofont_ttf_len, fontSize, 0, 0);
+    if (myFont.texture.id == 0) {
+      std::cerr << "Failed to load embedded font from memory!" << std::endl;
+    } else {
+      std::cout << "Embedded font loaded successfully!" << std::endl;
+    }
+  }
+
+  void Dispose() { UnloadFont(myFont); }
 
   void AddEntry(const std::string& label, std::function<std::string()> valueFunc) {
     entries.push_back({label, valueFunc});
@@ -237,17 +248,19 @@ class DebugPanel {
     int longestEntryWidth = 0;
     for (const auto& entry : entries) {
       std::string text = entry.label + ": " + entry.valueFunc();
-      int width = MeasureText(text.c_str(), fontSize);
+      int width = MeasureText(text.c_str(), fontSize) - fontSize;
       longestEntryWidth = std::max(longestEntryWidth, width);
       longestEntryEver = std::max(longestEntryEver, width);
     }
 
-    int left = x - 10;
-    int top = y - 10;
-    int right = x + longestEntryEver + 10;
-    int bottom = y + padding * entriesSize + 10;
+    float pad = fontSize * 0.5f;
 
-    DrawRectangle(left, top, longestEntryEver + 20, padding * entries.size() + 20, Fade(BLACK, 0.8f));
+    int left = x - pad;
+    int top = y - pad;
+    int right = x + longestEntryEver + pad;
+    int bottom = y + padding * entriesSize + pad;
+
+    DrawRectangle(left, top, longestEntryEver + fontSize, padding * entries.size() + fontSize, Fade(BLACK, 0.7f));
     DrawLine(left, top, right, top, WHITE);        // top
     DrawLine(left, top, left, bottom, WHITE);      // left
     DrawLine(right, top, right, bottom, WHITE);    // right
@@ -256,7 +269,7 @@ class DebugPanel {
     float yOffset = y;
     for (const auto& entry : entries) {
       std::string text = entry.label + ": " + entry.valueFunc();
-      DrawText(text.c_str(), x, yOffset, fontSize, WHITE);
+      DrawTextEx(myFont, text.c_str(), {static_cast<float>(x), yOffset}, fontSize, 0, WHITE);
       yOffset += padding;
     }
   }
@@ -344,7 +357,7 @@ void DrawMonitorLayout(const MonitorState& monitorState) {
 }
 
 int main(int argc, char* argv[]) {
-  const int fontSize = 20;
+  const int fontSize = 16;
 
   int screenWidth = 640;
   int screenHeight = 480;
@@ -369,11 +382,11 @@ int main(int argc, char* argv[]) {
   SetConfigFlags(FLAG_WINDOW_HIDDEN);
   InitWindow(screenWidth, screenHeight, "urblind");
 
-  DebugPanel debugPanel(21, 21, fontSize, 1.1f);
+  DebugPanel debugPanel(21, 21, fontSize, 1.0f);
   debugPanel.AddEntry("fps    ", [&]() { return TextFormat("%d", fps); });
-  debugPanel.AddEntry("mouse  ", [&]() { return TextFormat("%04.0f, %04.0f", mousePosition.x, mousePosition.y); });
-  debugPanel.AddEntry("texure ", [&]() { return TextFormat("%04.0f, %04.0f", mouseOnTexture.x, mouseOnTexture.y); });
-  debugPanel.AddEntry("pan    ", [&]() { return TextFormat("%04.0f, %04.0f", pan.x, pan.y); });
+  debugPanel.AddEntry("mouse  ", [&]() { return TextFormat("%05.0f, %05.0f", mousePosition.x, mousePosition.y); });
+  debugPanel.AddEntry("texure ", [&]() { return TextFormat("%05.0f, %05.0f", mouseOnTexture.x, mouseOnTexture.y); });
+  debugPanel.AddEntry("pan    ", [&]() { return TextFormat("%05.0f, %05.0f", pan.x, pan.y); });
   debugPanel.AddEntry("zoom   ", [&]() { return TextFormat("%.2f", zoom); });
 
   MonitorState monitorState;
