@@ -33,7 +33,7 @@ class MonitorState {
  public:
   int totalWidth = 0;
   int totalHeight = 0;
-  std::vector<int> spatialMonitorIndexes;
+  std::vector<int> spatialMonitorIndexes;  // store real monitor indices in left-to-right spatial order
   std::vector<Vector2> resolutions;
   std::vector<Vector2> positions;
   int mainMonitor = 0;
@@ -47,8 +47,9 @@ class MonitorState {
       return;
     }
 
-    std::vector<float> monitorPositions(monitorCount);
+    std::vector<std::pair<int, float>> monitorData;
     resolutions.resize(monitorCount);
+    positions.resize(monitorCount);
 
     for (int i = 0; i < monitorCount; i++) {
       Vector2 position = GetMonitorPosition(i);
@@ -56,22 +57,21 @@ class MonitorState {
       int height = GetMonitorHeight(i);
 
       resolutions[i] = {static_cast<float>(width), static_cast<float>(height)};
-      monitorPositions[i] = position.x;
+      positions[i] = position;
+      monitorData.emplace_back(i, position.x);  // Pair of (real index, X position)
 
-      std::cout << "Monitor " << i << ": " << width << "x" << height << " | Position: (" << position.x << ","
+      std::cout << "Monitor " << i << ": " << width << "x" << height << " | Position: (" << position.x << ", "
                 << position.y << ")\n";
     }
 
-    // Sort monitor indexes by X position
-    spatialMonitorIndexes.resize(monitorCount);
-    for (int i = 0; i < monitorCount; i++) {
-      spatialMonitorIndexes[i] = i;
-    }
-    std::sort(spatialMonitorIndexes.begin(), spatialMonitorIndexes.end(),
-              [&monitorPositions](int a, int b) { return monitorPositions[a] < monitorPositions[b]; });
+    // Sort by X position (left to right)
+    std::sort(monitorData.begin(), monitorData.end(),
+              [](const std::pair<int, float>& a, const std::pair<int, float>& b) { return a.second < b.second; });
 
-    for (int i = 0; i < monitorCount; i++) {
-      positions.push_back(GetMonitorPosition(spatialMonitorIndexes[i]));
+    // Fill spatialMonitorIndexes with the real indices but in left-to-right order
+    spatialMonitorIndexes.clear();
+    for (const auto& pair : monitorData) {
+      spatialMonitorIndexes.push_back(pair.first);
     }
 
     std::cout << "Monitor Order (Left to Right): ";
@@ -86,7 +86,7 @@ class MonitorState {
       totalWidth += resolutions[index].x;
     }
 
-    // Compute total height (handling vertical stacking)
+    // Compute total height (handling stacked monitors)
     totalHeight = 0;
     float maxY = 0;
     for (int index : spatialMonitorIndexes) {
@@ -99,9 +99,18 @@ class MonitorState {
       }
     }
 
-    // Get the main monitor
+    // Get the main monitor (system-reported)
     mainMonitor = GetCurrentMonitor();
     std::cout << "Main Monitor: " << mainMonitor << std::endl;
+  }
+
+  // Function that takes a spatial index and returns the real monitor index
+  int getRealMonitorIndex(int spatialIndex) {
+    if (spatialIndex < 0 || spatialIndex >= spatialMonitorIndexes.size()) {
+      std::cerr << "Invalid monitor index!" << std::endl;
+      return -1;
+    }
+    return spatialMonitorIndexes[spatialIndex];  // Return the real index
   }
 };
 
@@ -339,8 +348,8 @@ void DrawMonitorLayout(const MonitorState& monitorState) {
 
   int maxBoxHeight = 10;  // Fixed height for boxes
   for (int i = 0; i < monitorCount; i++) {
-    int idx = monitorState.spatialMonitorIndexes[i];
-    boxWidths[i] = std::max(10, static_cast<int>(monitorState.resolutions[idx].x * scaleFactor));
+    int realIndex = monitorState.spatialMonitorIndexes[i];  // Real index
+    boxWidths[i] = std::max(10, static_cast<int>(monitorState.resolutions[realIndex].x * scaleFactor));
     boxHeights[i] = maxBoxHeight;
   }
 
@@ -356,25 +365,25 @@ void DrawMonitorLayout(const MonitorState& monitorState) {
   for (int row = 0; row < maxBoxHeight; row++) {
     std::string line;
     for (int i = 0; i < monitorCount; i++) {
+      int realIndex = monitorState.spatialMonitorIndexes[i];  // Get real index in order
+      std::string resolutionLabel = std::to_string(static_cast<int>(monitorState.resolutions[realIndex].x)) + "x" +
+                                    std::to_string(static_cast<int>(monitorState.resolutions[realIndex].y));
+
+      std::string spatialIndexLabel = "[" + std::to_string(i) + "]";  // Spatial index for ordering
+
+      int padding = boxWidths[i] - 2 - resolutionLabel.size();
+      int bottomPadding = boxWidths[i] - 2 - spatialIndexLabel.size();
+
       if (row == 0) {  // Top border
-        int idx = monitorState.spatialMonitorIndexes[i];
-        std::string label = std::to_string(static_cast<int>(monitorState.resolutions[idx].x)) + "x" +
-                            std::to_string(static_cast<int>(monitorState.resolutions[idx].y));
-        int padding = boxWidths[i] - 2 - label.size();
-        line += topLeft;
-        line += label;
+        line += topLeft + resolutionLabel;
         for (int j = 0; j < padding; j++) {
-          line += horizontal;  // Append UTF-8 horizontal bar
+          line += horizontal;
         }
         line += topRight + " ";
-      } else if (row == maxBoxHeight - 1) {  // Bottom border with monitor label
-        int idx = monitorState.spatialMonitorIndexes[i];
-        std::string label = "[" + std::to_string(idx) + "]";
-        int padding = boxWidths[i] - 2 - label.size();
-        line += bottomLeft;
-        line += label;
-        for (int j = 0; j < padding; j++) {
-          line += horizontal;  // Append UTF-8 horizontal bar
+      } else if (row == maxBoxHeight - 1) {  // Bottom border with spatial index
+        line += bottomLeft + spatialIndexLabel;
+        for (int j = 0; j < bottomPadding; j++) {
+          line += horizontal;
         }
         line += bottomRight + " ";
       } else {  // Empty box space
@@ -493,10 +502,13 @@ int main(int argc, char* argv[]) {
   if (debugAnchor) debugPanel.SetAnchor(*debugAnchor);
 
   // Default to the rightmost monitor if no valid selection is made
-  if (selectedMonitor == -1) {
-    selectedMonitor = monitorState.spatialMonitorIndexes.back();
+  if (selectedMonitor != -1) {
+    selectedMonitor = monitorState.getRealMonitorIndex(selectedMonitor);
+    if (selectedMonitor == -1) {
+      std::cerr << "Invalid monitor index! Falling back to the rightmost monitor.\n";
+      selectedMonitor = monitorState.spatialMonitorIndexes.back();
+    }
   }
-
   std::cout << "Using monitor " << selectedMonitor << "\n";
   screenWidth = GetMonitorWidth(selectedMonitor);
   screenHeight = GetMonitorHeight(selectedMonitor);
